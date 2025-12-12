@@ -1,8 +1,10 @@
 package dao;
 
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.result.DeleteResult;
 import dto.ConversationDto;
 import org.bson.Document;
+import com.mongodb.client.model.Filters;
 
 import java.util.function.Supplier;
 
@@ -37,4 +39,11 @@ public class ConversationDao extends BaseDao<ConversationDto> {
         return () -> auth;
     }
 
+    // Nicholas Blackson
+    // Deletes the conversation document with the given conversationId.
+    // Returns true if a document was deleted.
+    public boolean deleteByConversationId(String conversationId) {
+        DeleteResult result = collection.deleteOne(Filters.eq("conversationId", conversationId));
+        return result.getDeletedCount() > 0;
+    }
 }

@@ -1,8 +1,11 @@
 package dao;
 
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.result.DeleteResult;
 import dto.MessageDto;
 import org.bson.Document;
+import com.mongodb.client.model.Filters;
 
 import java.util.function.Supplier;
 
@@ -37,4 +40,10 @@ public class MessageDao extends BaseDao<MessageDto> {
         return () -> auth;
     }
 
+    // Nicholas Blackson
+    // Deletes all messages for the given conversationId and returns the deleted count.
+    public long deleteByConversationId(String conversationId) {
+        DeleteResult result = collection.deleteMany(Filters.eq("conversationId", conversationId));
+        return result.getDeletedCount();
+    }
 }
