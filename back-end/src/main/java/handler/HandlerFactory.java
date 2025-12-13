@@ -18,6 +18,10 @@ public class HandlerFactory {
                 return new LoginHandler();
             case "/getUser":
                 return new GetUserHandler();
+            case "/sendGroupMessage":
+                return new SendGroupMessageHandler();
+            case "/getGroupMessages":
+                return new GetGroupMessagesHandler();
             default:
                 return new FallbackHandler();
         }

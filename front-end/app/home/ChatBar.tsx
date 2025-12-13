@@ -4,29 +4,34 @@ import React from 'react';
 
 interface Props {
   currentUser?: string;
-  // optional username to open when ChatBar mounts or changes
   targetUser?: string;
 }
 
 interface MessageDto {
   fromId?: string;
-  toId: string;
+  toId?: string;
   message?: string;
   conversationId?: string;
-  uniqueId?: string;
-  // ui helpers
+  groupId?: string;
+
+  // UI helpers
   from?: string;
   to?: string;
   text?: string;
   time?: string;
 }
 
+const GROUP_ID = 'demo-group';
+
+// ✅ THIS IS THE IMPORTANT PART
+const JAVA_BASE = 'http://localhost:1299';
+
 export default function ChatBar({ currentUser, targetUser }: Props) {
   const [messages, setMessages] = React.useState<MessageDto[]>([]);
-  // recipient input removed; use targetUserInput state instead
   const [text, setText] = React.useState('');
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
-  if (!currentUser || !targetUser) return;
+
+  if (!currentUser || !targetUser) return null;
 
   const ids = [currentUser, targetUser].slice().sort();
   const conversationId = `${ids[0]}_${ids[1]}`;
@@ -37,139 +42,136 @@ export default function ChatBar({ currentUser, targetUser }: Props) {
     }
   }, [messages]);
 
+  /* ===================== DIRECT MESSAGES (UNCHANGED) ===================== */
+
   async function loadConversation() {
-    try {
-      const res = await fetch(`/api/getConversation?conversationId=${encodeURIComponent(conversationId)}`);
-      if (!res.ok) {
-        console.error('Failed to load conversation', await res.text());
-        return;
-      }
-      const data = await res.json();
-      setMessages(data.data);
-    } catch (err) {
-      console.error('Error loading conversation', err);
-    }
+    const res = await fetch(
+      `/api/getConversation?conversationId=${encodeURIComponent(conversationId)}`
+    );
+    const data = await res.json();
+    setMessages(data.data);
   }
 
-
-  // load conversation when currentUser or targetUserInput changes
   React.useEffect(() => {
-
     loadConversation();
   }, [currentUser]);
 
   async function send() {
+    if (!text.trim()) return;
 
-    // compute conversation id for this pair
-    const ids = [currentUser || '', targetUser || ''].slice().sort();
-    const conversationId = `${ids[0]}_${ids[1]}`;
-
-    const payload: MessageDto = {
-      toId: targetUser || '',
+    const payload = {
+      fromId: currentUser,
+      toId: targetUser,
       message: text.trim(),
       conversationId,
-      fromId: currentUser,
     };
 
-    // optimistic UI message while waiting for server
-    const optimistic = {
-      from: currentUser || 'me',
-      to: targetUser || '',
-      text: text.trim(),
-      time: new Date().toLocaleTimeString(),
-    } as MessageDto;
+    setMessages((prev) => [
+      ...prev,
+      {
+        from: currentUser,
+        to: targetUser,
+        text: text.trim(),
+        time: new Date().toLocaleTimeString(),
+      },
+    ]);
 
-    loadConversation();
     setText('');
 
-    try {
-      const res = await fetch('/api/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+    await fetch('/api/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
 
-      if (res.ok) {
-        const data = await res.json();
-        // map server response to UI-friendly shape
-        const serverMsg: MessageDto = {
-          from: data.from || data.fromId || currentUser || 'me',
-          to: data.to || data.toId || targetUser || '',
-          text: data.text || data.message || payload.message,
-          time: data.time || data.createdAt || new Date().toLocaleTimeString(),
-          // keep any ids returned
-          fromId: data.fromId || payload.fromId,
-          toId: data.toId || payload.toId,
-          uniqueId: data.uniqueId || data.id,
-        };
+  /* ===================== GROUP CHAT (FIXED) ===================== */
 
-        // replace the optimistic message with server message
-        setMessages((prev) => {
-          const copy = [...prev];
-          // find last optimistic message matching text and recipient
-          const idx = copy.findLastIndex((m) => (m.text || m.message) === optimistic.text && (m.to || m.toId) === optimistic.to);
-          if (idx !== -1) {
-            copy[idx] = serverMsg;
-          } else {
-            copy.push(serverMsg);
-          }
-          return copy;
-        });
-      } else {
-        console.error('Failed to send message', await res.text());
-      }
-    } catch (err) {
-      console.error('Network error sending message', err);
+  async function sendGroup() {
+    if (!text.trim()) return;
+
+    const payload = {
+      fromId: currentUser,
+      groupId: GROUP_ID,
+      message: text.trim(),
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        from: currentUser,
+        text: text.trim(),
+        time: new Date().toLocaleTimeString(),
+      },
+    ]);
+
+    setText('');
+
+    const res = await fetch(`${JAVA_BASE}/sendGroupMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      console.error('Group send failed:', await res.text());
     }
   }
 
+  async function loadGroupMessages() {
+    const res = await fetch(
+      `${JAVA_BASE}/getGroupMessages?groupId=${GROUP_ID}`,
+      { credentials: 'include' }
+    );
+
+    if (!res.ok) {
+      console.error('Failed to load group messages:', await res.text());
+      return;
+    }
+
+    const data = await res.json();
+
+    setMessages(
+      data.data.map((m: any) => ({
+        from: m.fromId,
+        text: m.message,
+        time: new Date(m.timestamp).toLocaleTimeString(),
+      }))
+    );
+  }
+
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 16 }}>
-      <h2 style={{ margin: '0 0 8px 0' }}>Chat</h2>
+    <div style={{ marginTop: 24 }}>
+      <h2>Group Chat ({GROUP_ID})</h2>
 
       <div
         ref={messagesRef}
         style={{
           height: 160,
           overflowY: 'auto',
+          border: '1px solid #ccc',
           padding: 8,
-          border: '1px solid #e6e6e6',
-          borderRadius: 6,
-          background: '#fafafa',
         }}
       >
-        {messages.length === 0 ? (
-          <div style={{ color: '#666' }}>No messages yet.</div>
-        ) : (
-          messages.map((m, i) => (
-            <div key={i} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                {(m.time || '')} • {(m.from || m.fromId)} → {(m.to || m.toId)}
-              </div>
-              <div>{m.text || m.message}</div>
-            </div>
-          ))
-        )}
+        {messages.map((m, i) => (
+          <div key={i}>
+            <small>{m.time} • {m.from}</small>
+            <div>{m.text}</div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ marginTop: 8 }}>
-        <textarea
-          placeholder="Type a message"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ width: '100%', padding: 8, minHeight: 72, resize: 'vertical' }}
-        />
-      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{ width: '100%', marginTop: 8 }}
+      />
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={send}
-            style={{ height: 44, padding: '0 16px', alignSelf: 'center' }}
-          >
-            Send
-          </button>
-        </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <button onClick={send}>Send Direct</button>
+        <button onClick={sendGroup}>Send Group</button>
+        <button onClick={loadGroupMessages}>Load Group</button>
       </div>
     </div>
   );

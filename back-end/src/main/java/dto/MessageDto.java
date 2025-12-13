@@ -8,6 +8,7 @@ public class MessageDto extends BaseDto {
 
     private String fromId;
     private String toId;
+    public String groupId;
     private String message;
     private Long timestamp;
     private String conversationId;

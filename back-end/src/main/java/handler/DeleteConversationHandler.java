@@ -1,12 +1,15 @@
 package handler;
 
 import auth.AuthFilter;
-import dao.MessageDao;
 import dao.ConversationDao;
+import dao.MessageDao;
+import dto.BaseDto;
 import request.ParsedRequest;
 import response.ResponseBuilder;
 import response.RestApiAppResponse;
 import response.StatusCodes;
+
+import java.util.List;
 
 public class DeleteConversationHandler implements BaseHandler {
 
@@ -15,26 +18,42 @@ public class DeleteConversationHandler implements BaseHandler {
 
         AuthFilter.AuthResult authResult = AuthFilter.doFilter(request);
         if (!authResult.isLoggedIn) {
-            return new ResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
+            return new ResponseBuilder()
+                    .setStatus(StatusCodes.UNAUTHORIZED);
         }
 
         String conversationId = request.getQueryParam("conversationId");
         if (conversationId == null || conversationId.isBlank()) {
-            return new ResponseBuilder().setStatus(StatusCodes.BAD_REQUEST);
+            return new ResponseBuilder()
+                    .setStatus(StatusCodes.BAD_REQUEST);
         }
 
-        MessageDao messageDao = MessageDao.getInstance();
-        messageDao.deleteByConversationId(conversationId); // delete messages first
-
-        ConversationDao conversationDao = ConversationDao.getInstance();
-        boolean deleted = conversationDao.deleteByConversationId(conversationId);
+        MessageDao.getInstance().deleteByConversationId(conversationId);
+        boolean deleted = ConversationDao.getInstance()
+                .deleteByConversationId(conversationId);
 
         if (deleted) {
-            var res = new RestApiAppResponse<>(true, "Conversation deleted", null);
-            return new ResponseBuilder().setStatus("200 OK").setBody(res);
+            RestApiAppResponse<BaseDto> res =
+                    new RestApiAppResponse<>(
+                            true,
+                            List.of(),
+                            "Conversation deleted"
+                    );
+
+            return new ResponseBuilder()
+                    .setStatus(StatusCodes.OK)
+                    .setBody(res);
         } else {
-            var res = new RestApiAppResponse<>(false, null, "Conversation not found");
-            return new ResponseBuilder().setStatus(StatusCodes.NOT_FOUND).setBody(res);
+            RestApiAppResponse<BaseDto> res =
+                    new RestApiAppResponse<>(
+                            false,
+                            List.of(),
+                            "Conversation not found"
+                    );
+
+            return new ResponseBuilder()
+                    .setStatus("404 Not Found")
+                    .setBody(res);
         }
     }
 }
