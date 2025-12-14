@@ -22,6 +22,10 @@ public class HandlerFactory {
                 return new SendGroupMessageHandler();
             case "/getGroupMessages":
                 return new GetGroupMessagesHandler();
+            case "/block":
+                return new BlockHandler();
+            case "/blocks":
+                return new BlockHandler();
             default:
                 return new FallbackHandler();
         }
