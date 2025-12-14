@@ -8,7 +8,6 @@ import com.mongodb.client.model.Filters;
 
 import java.util.function.Supplier;
 
-// TODO fill this out
 public class ConversationDao extends BaseDao<ConversationDto> {
 
     private static ConversationDao instance;
@@ -21,27 +20,25 @@ public class ConversationDao extends BaseDao<ConversationDto> {
     }
 
     public static ConversationDao getInstance() {
-        if (instance != null) {
-            return instance;
-        }
+        if (instance != null) return instance;
         instance = instanceSupplier.get();
         return instance;
     }
 
-    public static void setInstanceSupplier(Supplier<ConversationDao> instanceSupplier){
-        ConversationDao.instanceSupplier = instanceSupplier;
+    // Allows injection of mocks in tests
+    public static void setInstanceSupplier(Supplier<ConversationDao> supplier) {
+        instanceSupplier = supplier;
+        instance = null;
     }
 
     @Override
     Supplier<ConversationDto> getFromDocument(Document document) {
-        var auth = new ConversationDto();
-        auth.fromDocument(document);
-        return () -> auth;
+        ConversationDto dto = new ConversationDto();
+        dto.fromDocument(document);
+        return () -> dto;
     }
 
-    // Nicholas Blackson
-    // Deletes the conversation document with the given conversationId.
-    // Returns true if a document was deleted.
+    // Deletes the conversation document by conversationId. Returns true if deleted.
     public boolean deleteByConversationId(String conversationId) {
         DeleteResult result = collection.deleteOne(Filters.eq("conversationId", conversationId));
         return result.getDeletedCount() > 0;

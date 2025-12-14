@@ -26,9 +26,10 @@ public class HandlerFactory {
                 return new BlockHandler();
             case "/blocks":
                 return new BlockHandler();
+            case "/deleteConversation":
+                return new DeleteConversationHandler();
             default:
                 return new FallbackHandler();
         }
     }
-
 }
