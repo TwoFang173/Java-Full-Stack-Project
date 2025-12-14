@@ -8,8 +8,10 @@ Run both together + mongodb in order to get full stack project running
 
 ## Team members
 - **Marco Garcia** - Block List Feature - [YOUR_VIDEO_LINK_HERE]
-- **airwalker3000** - Friends List Feature - [link to recording]
-- **Mr Blackson** - Delete Chat Feature - [link to recording]
+- **Alejandro Cruz-Garcia** - Friends List Feature - [link to recording]
+- **Nicholas Blackson** - Delete Chat Feature - [link to recording]
+- **Akim Tarasov** - Send Images Chat Feature - [link to recording]
+
 
 ## Features
 
@@ -61,5 +63,7 @@ Allows users to block and unblock other users, maintaining a personal block list
 
 ## Known Issues
 - Minor checkstyle warnings in `GroupChatHandler.java` (teammate's code) - wildcard imports
+- Issues with DeleteConversationHandler.java 
+
 
 
