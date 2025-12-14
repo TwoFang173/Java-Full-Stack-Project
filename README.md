@@ -35,7 +35,23 @@ Allows users to block and unblock other users, maintaining a personal block list
 [Teammate to fill in]
 
 ### Delete Chat (Mr Blackson)
-[Teammate to fill in]
+Allows users to delete an entire conversation along with all its messages.
+
+- **Backend Endpoints**: 
+  - `POST /deleteConversation` - Delete a conversation (JSON: `{"conversationId": "id_of_conversation"}`)
+  
+- **Frontend**: 
+  - Accessible via the dashboard conversation list by clicking the "Delete" button next to each conversation.
+  - Prompts the user to confirm deletion before removing the conversation from the list.
+  - Updates the UI immediately after deletion.
+  
+- **Database**: 
+  - Collections: `conversations` and `messages` in MongoDB `Homework2` database.
+  - Behavior: Deletes the conversation document and all associated message documents by `conversationId`.
+
+- **Notes**:
+  - Requires authentication; only logged-in users can delete conversations.
+  - Returns `200 OK` on success, `404 Not Found` if the conversation does not exist, and `401 Unauthorized` if the user is not logged in.
 
 ## How to Run
 
