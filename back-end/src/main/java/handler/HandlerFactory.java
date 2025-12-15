@@ -10,6 +10,8 @@ public class HandlerFactory {
                 return new CreateUserHandler();
             case "/sendMessage":
                 return new SendMessageHandler();
+            case "/sendMulti":
+                return new SendMultiMessageHandler();
             case "/getConversations":
                 return new GetConversationsHandler();
             case "/getConversation":
@@ -18,10 +20,6 @@ public class HandlerFactory {
                 return new LoginHandler();
             case "/getUser":
                 return new GetUserHandler();
-            case "/sendGroupMessage":
-                return new SendGroupMessageHandler();
-            case "/getGroupMessages":
-                return new GetGroupMessagesHandler();
             case "/block":
                 return new BlockHandler();
             case "/blocks":
