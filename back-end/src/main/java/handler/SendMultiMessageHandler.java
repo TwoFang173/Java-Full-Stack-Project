@@ -16,98 +16,78 @@ import java.util.List;
 
 public class SendMultiMessageHandler implements BaseHandler {
 
+    private static class MultiSendBody {
+        public List<String> toIds;
+        public String message;
+    }
+
     @Override
     public ResponseBuilder handleRequest(ParsedRequest request) {
-
-        // Expect body like:
-        // {
-        //   "toIds": ["user1", "user2"],
-        //   "message": "hello"
-        // }
-
-        MultiSendPayload payload =
-                GsonTool.GSON.fromJson(request.getBody(), MultiSendPayload.class);
-
         AuthFilter.AuthResult auth = AuthFilter.doFilter(request);
         if (!auth.isLoggedIn) {
             return new ResponseBuilder().setStatus(StatusCodes.UNAUTHORIZED);
+        }
+
+        MultiSendBody body = GsonTool.GSON.fromJson(request.getBody(), MultiSendBody.class);
+
+        if (body == null || body.toIds == null || body.toIds.isEmpty() || body.message == null) {
+            return new ResponseBuilder()
+                    .setStatus(StatusCodes.BAD_REQUEST)
+                    .setBody(new RestApiAppResponse<>(false, null, "Invalid payload"));
         }
 
         UserDao userDao = UserDao.getInstance();
         MessageDao messageDao = MessageDao.getInstance();
         ConversationDao conversationDao = ConversationDao.getInstance();
 
-        var sender = userDao.query("userName", auth.userName)
-                .stream()
-                .findFirst()
-                .orElse(null);
+        var fromUser = userDao.query("userName", auth.userName)
+                .stream().findFirst().orElse(null);
 
-        if (sender == null) {
+        if (fromUser == null) {
             return new ResponseBuilder()
                     .setStatus("200 OK")
                     .setBody(new RestApiAppResponse<>(false, null, "Invalid sender"));
         }
 
-        List<ConversationDto> updatedConversations = new ArrayList<>();
+        List<ConversationDto> createdConversations = new ArrayList<>();
 
-        for (String toId : payload.toIds) {
+        for (String toId : body.toIds) {
+            var toUser = userDao.query("userName", toId)
+                    .stream().findFirst().orElse(null);
 
-            var receiver = userDao.query("userName", toId)
-                    .stream()
-                    .findFirst()
-                    .orElse(null);
-
-            if (receiver == null) {
-                continue; // skip invalid users
-            }
+            if (toUser == null) continue;
 
             String conversationId =
-                    ConversationDto.makeUniqueId(sender.getUserName(), toId);
+                    ConversationDto.makeUniqueId(fromUser.getUserName(), toId);
 
-            ConversationDto conversation =
-                    conversationDao.query("conversationId", conversationId)
-                            .stream()
-                            .findFirst()
-                            .orElse(new ConversationDto(
-                                    sender.getUserName(),
-                                    toId
-                            ));
+            ConversationDto convo = conversationDao
+                    .query("conversationId", conversationId)
+                    .stream()
+                    .findFirst()
+                    .orElse(new ConversationDto(fromUser.getUserName(), toId));
 
-            conversation.setMessageCount(conversation.getMessageCount() + 1);
-            conversationDao.put(conversation);
+            convo.setMessageCount(convo.getMessageCount() + 1);
+            conversationDao.put(convo);
 
-            MessageDto messageDto = new MessageDto();
-            messageDto.setFromId(sender.getUserName());
-            messageDto.setToId(toId);
-            messageDto.setConversationId(conversationId);
-            messageDto.setMessage(payload.message);
+            MessageDto msg = new MessageDto();
+            msg.setFromId(fromUser.getUserName());
+            msg.setToId(toId);
+            msg.setMessage(body.message);
+            msg.setConversationId(conversationId);
 
-            messageDao.put(messageDto);
+            messageDao.put(msg);
 
-            receiver.setMessagesRecieved(receiver.getMessagesRecieved() + 1);
-            sender.setMessagesSent(sender.getMessagesSent() + 1);
+            toUser.setMessagesRecieved(toUser.getMessagesRecieved() + 1);
+            fromUser.setMessagesSent(fromUser.getMessagesSent() + 1);
 
-            userDao.put(receiver);
-            updatedConversations.add(conversation);
+            userDao.put(toUser);
+            userDao.put(fromUser);
+
+            createdConversations.add(convo);
         }
-
-        userDao.put(sender);
 
         return new ResponseBuilder()
                 .setStatus("200 OK")
-                .setBody(new RestApiAppResponse<>(
-                        true,
-                        updatedConversations,
-                        null
-                ));
-    }
-
-    /**
-     * Local payload class ONLY for parsing request body.
-     * Not a Mongo DTO.
-     */
-    private static class MultiSendPayload {
-        List<String> toIds;
-        String message;
+                .setBody(new RestApiAppResponse<>(true, createdConversations, null));
     }
 }

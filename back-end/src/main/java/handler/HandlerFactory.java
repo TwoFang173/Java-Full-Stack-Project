@@ -10,7 +10,7 @@ public class HandlerFactory {
                 return new CreateUserHandler();
             case "/sendMessage":
                 return new SendMessageHandler();
-            case "/sendMulti":
+            case "/sendMultiMessage":
                 return new SendMultiMessageHandler();
             case "/getConversations":
                 return new GetConversationsHandler();

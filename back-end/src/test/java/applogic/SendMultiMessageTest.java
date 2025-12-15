@@ -1,6 +1,5 @@
 package applogic;
 
-import dto.AuthDto;
 import dto.MessageDto;
 import dto.UserDto;
 import handler.GsonTool;
@@ -47,7 +46,7 @@ public class SendMultiMessageTest {
 
         // ===== Parsed Request =====
         ParsedRequest parsedRequest = new ParsedRequest();
-        parsedRequest.setPath("/sendMulti");
+        parsedRequest.setPath("/sendMultiMessage"); // ✅ FIXED
 
         var auth = testUtils.createLogin(sender.getUserName());
         parsedRequest.setCookieValue("auth", auth.getHash());
@@ -59,7 +58,6 @@ public class SendMultiMessageTest {
 
         parsedRequest.setBody(GsonTool.GSON.toJson(payload));
 
-        // ===== Handler =====
         var handler = HandlerFactory.getHandler(parsedRequest);
 
         // ===== Mock DAO behavior =====
@@ -71,6 +69,10 @@ public class SendMultiMessageTest {
 
         Mockito.when(testUtils.mockUserDao.query("userName", userB.getUserName()))
                 .thenReturn(userBReturn);
+
+        // ✅ ConversationDao MUST be stubbed
+        Mockito.when(testUtils.mockConversationDao.query(Mockito.anyString(), Mockito.any()))
+                .thenReturn(new ArrayList<>());
 
         // ===== Captors =====
         ArgumentCaptor<MessageDto> messageCaptor =
@@ -105,16 +107,16 @@ public class SendMultiMessageTest {
         Mockito.verify(testUtils.mockUserDao, Mockito.atLeast(3))
                 .put(userCaptor.capture());
 
-        // One sender + two receivers
         var updatedUsers = userCaptor.getAllValues();
 
-        UserDto updatedSender =
+        // sender was updated twice — take LAST
+        UserDto finalSender =
                 updatedUsers.stream()
                         .filter(u -> u.getUserName().equals(sender.getUserName()))
-                        .findFirst()
+                        .reduce((first, second) -> second)
                         .orElseThrow();
 
-        Assert.assertEquals(updatedSender.getMessagesSent(), 2);
+        Assert.assertEquals(finalSender.getMessagesSent(), 2);
 
         UserDto updatedA =
                 updatedUsers.stream()
