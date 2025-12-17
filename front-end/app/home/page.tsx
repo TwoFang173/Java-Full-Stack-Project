@@ -12,9 +12,12 @@ interface UserDto {
 }
 
 type Conversation = {
-    id: string;
-    title?: string;
-    // add other fields if your API returns them
+    conversationId: string;
+    fromId: string;
+    toId: string;
+    messageCount: number;
+    uniqueId?: string;
+    title?: string; // other user
 };
 
 export default function Home() {
@@ -27,43 +30,53 @@ export default function Home() {
     const [deletingId, setDeletingId] = React.useState<string | null>(null);
     const [convoError, setConvoError] = React.useState<string | null>(null);
 
+    // Fetch current user
     React.useEffect(() => {
         fetch("/api/getUser", { credentials: 'include' })
-            .then((res) => res.json())
-            .then((apiRes) => {
-                setUser(apiRes?.data?.[0] ?? null);
-            })
-            .catch((err) => {
-                console.error(err);
-            })
+            .then(res => res.json())
+            .then(apiRes => setUser(apiRes?.data?.[0] ?? null))
+            .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
 
+    // Fetch conversations
     React.useEffect(() => {
+        if (!user) return;
         setLoadingConvos(true);
-        fetch("/api/conversations", { credentials: 'include' })
-            .then((res) => res.json())
-            .then((apiRes) => {
-                if (apiRes && apiRes.status) setConversations(apiRes.data || []);
-                else setConvoError(apiRes?.message || 'Failed to load conversations');
+        fetch("/api/getConversations", { credentials: 'include' })
+            .then(res => res.json())
+            .then(apiRes => {
+                if (apiRes && apiRes.status) {
+                    const userName = user.userName;
+                    const convosWithTitle = (apiRes.data || []).map((c: Conversation) => ({
+                        ...c,
+                        title: c.fromId === userName ? c.toId : c.fromId
+                    }));
+                    setConversations(convosWithTitle);
+                } else {
+                    setConvoError(apiRes?.message || 'Failed to load conversations');
+                }
             })
             .catch(() => setConvoError('Failed to load conversations'))
             .finally(() => setLoadingConvos(false));
-    }, []);
+    }, [user]);
 
     const formatNumber = (n?: number) => (typeof n === 'number' ? n.toLocaleString() : '—');
 
     function handleDeleteConversation(conversationId: string) {
         if (!confirm('Delete this conversation? This cannot be undone.')) return;
         setDeletingId(conversationId);
-        fetch(`/api/deleteConversation?conversationId=${encodeURIComponent(conversationId)}`, {
-            method: 'DELETE',
+
+        fetch(`/api/deleteConversation`, {
+            method: 'POST', // backend expects POST
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
+            body: JSON.stringify({ conversationId })
         })
             .then(res => res.json())
             .then(apiRes => {
                 if (apiRes && apiRes.status) {
-                    setConversations(prev => prev.filter(c => c.id !== conversationId));
+                    setConversations(prev => prev.filter(c => c.conversationId !== conversationId));
                 } else {
                     setConvoError(apiRes?.message || 'Failed to delete conversation');
                 }
@@ -72,7 +85,6 @@ export default function Home() {
             .finally(() => setDeletingId(null));
     }
 
-    // Early return when loading finished but no user data
     if (!loading && !user) {
         return (
             <div style={{ padding: 20 }}>
@@ -116,19 +128,20 @@ export default function Home() {
                 {!loadingConvos && conversations.length === 0 && <div>No conversations</div>}
                 <ul style={{ listStyle: 'none', padding: 0, marginTop: 12 }}>
                     {conversations.map(c => (
-                        <li key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid #eee', borderRadius: 6, marginBottom: 8 }}>
+                        <li key={c.conversationId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid #eee', borderRadius: 6, marginBottom: 8 }}>
                             <div>
-                                <div style={{ fontWeight: 600 }}>{c.title || '(no title)'}</div>
-                                <div style={{ fontSize: 12, color: '#666' }}>{c.id}</div>
+                                <div style={{ fontWeight: 600 }}>{c.title}</div>
+                                <div style={{ fontSize: 12, color: '#666' }}>{c.conversationId}</div>
                             </div>
                             <div>
-                                <button onClick={() => setActiveChatUser(c.title ?? c.id)} style={{ marginRight: 8 }}>Open</button>
+                                <div style={{ fontWeight: 600 }}>{c.title ?? 'Unknown'}</div>
+                                <button onClick={() => setActiveChatUser(c.title ?? null)} style={{ marginRight: 8 }}>Open</button>
                                 <button
-                                    onClick={() => handleDeleteConversation(c.id)}
+                                    onClick={() => handleDeleteConversation(c.conversationId)}
                                     disabled={deletingId !== null}
                                     style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '6px 10px', borderRadius: 4, cursor: 'pointer' }}
                                 >
-                                    {deletingId === c.id ? 'Deleting…' : 'Delete'}
+                                    {deletingId === c.conversationId ? 'Deleting…' : 'Delete'}
                                 </button>
                             </div>
                         </li>
@@ -142,7 +155,7 @@ export default function Home() {
                 </div>
             )}
 
-            {activeChatUser ? (
+            {activeChatUser && (
                 <div style={{ marginTop: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontWeight: 600 }}>Chat with {activeChatUser}</div>
@@ -150,9 +163,13 @@ export default function Home() {
                             Back to chats
                         </button>
                     </div>
-                    <ChatBar currentUser={user?.userName} targetUser={activeChatUser} />
+                    <ChatBar
+                        currentUser={user?.userName}
+                        targetUser={activeChatUser}
+                        conversationId={conversations.find(c => c.title === activeChatUser)?.conversationId}
+                    />
                 </div>
-            ) : null}
+            )}
         </div>
     );
 }

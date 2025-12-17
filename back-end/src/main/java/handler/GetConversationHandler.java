@@ -7,6 +7,8 @@ import response.ResponseBuilder;
 import response.RestApiAppResponse;
 import response.StatusCodes;
 
+import java.util.ArrayList;
+
 public class GetConversationHandler implements BaseHandler {
 
     @Override
@@ -19,7 +21,7 @@ public class GetConversationHandler implements BaseHandler {
 
         String conversationId = request.getQueryParam("conversationId");
         MessageDao messageDao = MessageDao.getInstance();
-        var messages = messageDao.query("conversationId", conversationId);
+        var messages = new ArrayList<>(messageDao.query("conversationId", conversationId));
 
         var res = new RestApiAppResponse<>(true, messages, null);
         return new ResponseBuilder().setStatus("200 OK").setBody(res);

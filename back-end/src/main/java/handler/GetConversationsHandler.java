@@ -9,7 +9,8 @@ import response.ResponseBuilder;
 import response.RestApiAppResponse;
 import response.StatusCodes;
 
-// Done
+import java.util.ArrayList;
+
 public class GetConversationsHandler implements BaseHandler {
 
     @Override
@@ -25,9 +26,12 @@ public class GetConversationsHandler implements BaseHandler {
                 .findFirst()
                 .orElse(null);
 
+        if (userDto == null) {
+            return new ResponseBuilder().setStatus(StatusCodes.NOT_FOUND);
+        }
+
         ConversationDao conversationDao = ConversationDao.getInstance();
-        assert userDto != null;
-        var convos = conversationDao.query("toId", userDto.getUserName());
+        var convos = new ArrayList<>(conversationDao.query("toId", userDto.getUserName()));
         var convos2 = conversationDao.query("fromId", userDto.getUserName());
 
         convos.addAll(convos2);
