@@ -31,8 +31,60 @@ Allows users to block and unblock other users, maintaining a personal block list
   - Collection: `blocks` in MongoDB `Homework2` database
   - Documents: `{ blocker: String, blocked: String, timestamp: Long }`
 
-### Friends List (airwalker3000)
-[Teammate to fill in]
+### Multi-Send Message (Alejandro Cruz-Garcia)
+
+- **Backend Endpoints**:
+  - `POST /sendMulti` – Send the same message to multiple users  
+    - Requires authentication cookie (`auth`)
+    - Request Body:
+      ```json
+      {
+        "toIds": ["userA", "userB", "userC"],
+        "message": "Hello everyone"
+      }
+      ```
+    - Behavior:
+      - Creates one message per recipient
+      - Updates sender’s `messagesSent` count by number of recipients
+      - Updates each recipient’s `messagesRecieved` count by 1
+      - Creates or updates a conversation per sender–recipient pair
+
+- **Frontend**:
+  - Component: `MultiSendBar`
+  - Integrated into: `/home` page
+  - Features:
+    - Enter multiple recipient usernames
+    - Send one message to all selected users
+    - Automatically updates conversations list
+
+- **Database**:
+  - Collection: `messages`
+    ```json
+    {
+      "fromId": "String",
+      "toId": "String",
+      "message": "String",
+      "timestamp": "Long",
+      "conversationId": "String"
+    }
+    ```
+  - Collection: `conversations`
+    ```json
+    {
+      "fromId": "String",
+      "toId": "String",
+      "conversationId": "String",
+      "messageCount": "Number"
+    }
+    ```
+
+- **Testing**:
+  - Test Class: `SendMultiMessageTest`
+  - Validates:
+    - Authentication is required
+    - One message is created per recipient
+    - Sender message count increments correctly
+    - Each recipient’s received count increments correctly
 
 ### Delete Chat (Mr Blackson)
 Allows users to delete an entire conversation along with all its messages.

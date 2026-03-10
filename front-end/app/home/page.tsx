@@ -3,6 +3,7 @@
 import React from "react";
 import ChatBar from "./ChatBar";
 import ChatList from "./ChatList";
+import MultiSendBar from './MultiSendBar';
 
 interface UserDto {
     userName: string;
@@ -119,6 +120,7 @@ export default function Home() {
                     </div>
                 </div>
             )}
+<MultiSendBar currentUser={user?.userName} />
 
             {/* Conversations section */}
             <div style={{ marginTop: 20 }}>
